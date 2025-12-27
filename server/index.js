@@ -21,14 +21,19 @@ app.use(express.static(path.join(__dirname, '..')));
 // ===== 公開路由 =====
 
 // 登入
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  const result = auth.login(username, password);
-  
-  if (result.success) {
-    res.json(result);
-  } else {
-    res.status(401).json(result);
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const result = await auth.login(username, password);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(401).json(result);
+    }
+  } catch (error) {
+    console.error('登入錯誤:', error);
+    res.status(500).json({ success: false, message: '系統錯誤，請稍後再試' });
   }
 });
 

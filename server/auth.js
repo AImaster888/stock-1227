@@ -1,44 +1,44 @@
 const jwt = require('jsonwebtoken');
+const { getSheetData } = require('./sheets');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_change_this';
 
-// 從環境變數讀取所有用戶
-function getUsers() {
-  const users = {};
-  
-  // 管理員帳號
-  if (process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD) {
-    users[process.env.ADMIN_USERNAME] = {
-      password: process.env.ADMIN_PASSWORD,
-      role: 'admin',
-      displayName: '管理員'
-    };
-  }
-  
-  // 一般用戶（USER_xxx=password 格式）
-  Object.keys(process.env).forEach(key => {
-    if (key.startsWith('USER_')) {
-      const username = key.replace('USER_', '').toLowerCase();
-      users[username] = {
-        password: process.env[key],
-        role: 'user',
-        displayName: username
-      };
+// 從 Google Sheets 讀取所有用戶
+async function getUsers() {
+  try {
+    const data = await getSheetData('users');
+    const users = {};
+
+    // 跳過標題列，從第二列開始
+    for (let i = 1; i < data.length; i++) {
+      const [username, password, role, status] = data[i];
+
+      // 只加入啟用狀態的用戶
+      if (status === 'active' && username && password) {
+        users[username.toLowerCase()] = {
+          password: password,
+          role: role || 'user',
+          displayName: username
+        };
+      }
     }
-  });
-  
-  return users;
+
+    return users;
+  } catch (error) {
+    console.error('讀取用戶資料失敗:', error);
+    return {};
+  }
 }
 
 // 登入
-function login(username, password) {
-  const users = getUsers();
+async function login(username, password) {
+  const users = await getUsers();
   const user = users[username.toLowerCase()];
-  
+
   if (!user || user.password !== password) {
     return { success: false, message: '帳號或密碼錯誤' };
   }
-  
+
   const token = jwt.sign(
     {
       userId: username.toLowerCase(),
@@ -48,7 +48,7 @@ function login(username, password) {
     JWT_SECRET,
     { expiresIn: '7d' }
   );
-  
+
   return {
     success: true,
     token,
@@ -88,8 +88,8 @@ function requireAdmin(req, res, next) {
 }
 
 // 取得所有用戶清單（不含密碼）
-function getAllUsers() {
-  const users = getUsers();
+async function getAllUsers() {
+  const users = await getUsers();
   return Object.keys(users).map(username => ({
     userId: username,
     role: users[username].role,
