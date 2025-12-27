@@ -398,4 +398,4 @@ MIT License
 
 ## 開發者
 
-使用 Claude Code 協助開發
+杰哥 | Claude Code 協助開發
