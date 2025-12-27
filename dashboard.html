@@ -220,10 +220,12 @@
     
     document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const stockCode = document.getElementById('stockCode').value;
+      const stockName = document.getElementById('stockName').textContent;
       const data = {
         日期: document.getElementById('date').value,
-        代號: document.getElementById('stockCode').value,
-        名稱: document.getElementById('stockName').textContent || document.getElementById('stockCode').value,
+        代號: stockCode,
+        名稱: stockName || '(查無此代號)',
         類型: document.getElementById('type').value,
         股數: document.getElementById('quantity').value,
         價格: document.getElementById('price').value,
@@ -247,10 +249,12 @@
     document.getElementById('editForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('editId').value;
+      const editStockCode = document.getElementById('editStockCode').value;
+      const editStockName = document.getElementById('editStockName').textContent;
       const data = {
         日期: document.getElementById('editDate').value,
-        代號: document.getElementById('editStockCode').value,
-        名稱: document.getElementById('editStockName').textContent || document.getElementById('editStockCode').value,
+        代號: editStockCode,
+        名稱: editStockName || '(查無此代號)',
         類型: document.getElementById('editType').value,
         股數: document.getElementById('editQuantity').value,
         價格: document.getElementById('editPrice').value,
