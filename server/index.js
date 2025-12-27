@@ -172,9 +172,14 @@ app.get('/api/admin/export/csv/:userId', auth.verifyToken, auth.requireAdmin, as
 });
 
 // 取得所有用戶清單（管理員）
-app.get('/api/admin/users', auth.verifyToken, auth.requireAdmin, (req, res) => {
-  const users = auth.getAllUsers();
-  res.json(users);
+app.get('/api/admin/users', auth.verifyToken, auth.requireAdmin, async (req, res) => {
+  try {
+    const users = await auth.getAllUsers();
+    res.json(users);
+  } catch (error) {
+    console.error('取得用戶清單錯誤:', error);
+    res.status(500).json({ error: '取得用戶清單失敗' });
+  }
 });
 
 // 頁面路由
