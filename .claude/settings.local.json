@@ -16,7 +16,8 @@
       "Bash(git remote add:*)",
       "Bash(git push:*)",
       "Bash(gh repo view:*)",
-      "Bash(git remote rename:*)"
+      "Bash(git remote rename:*)",
+      "Bash(git remote:*)"
     ]
   }
 }
