@@ -191,14 +191,14 @@ async function deleteTransaction(id, userId, role) {
 async function getAllUserStats() {
   const sheet = await initSheet();
   const rows = await sheet.getRows();
-  
+
   const stats = {};
-  
+
   rows.forEach(row => {
     const userId = row.get('user_id');
     const type = row.get('類型');
     const amount = parseFloat(row.get('總金額')) || 0;
-    
+
     if (!stats[userId]) {
       stats[userId] = {
         userId,
@@ -209,9 +209,9 @@ async function getAllUserStats() {
         sellAmount: 0
       };
     }
-    
+
     stats[userId].totalTransactions++;
-    
+
     if (type === 'buy') {
       stats[userId].buyCount++;
       stats[userId].buyAmount += amount;
@@ -220,8 +220,39 @@ async function getAllUserStats() {
       stats[userId].sellAmount += amount;
     }
   });
-  
+
   return Object.values(stats);
+}
+
+// 取得指定分頁的資料（用於讀取 users 分頁）
+async function getSheetData(sheetName) {
+  const serviceAccountAuth = new JWT({
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
+  await doc.loadInfo();
+
+  const targetSheet = doc.sheetsByTitle[sheetName];
+  if (!targetSheet) {
+    throw new Error(`找不到 ${sheetName} 分頁`);
+  }
+
+  const rows = await targetSheet.getRows();
+
+  // 取得標題列
+  const headers = targetSheet.headerValues;
+
+  // 轉換成二維陣列格式
+  const data = [headers];
+  rows.forEach(row => {
+    const rowData = headers.map(header => row.get(header) || '');
+    data.push(rowData);
+  });
+
+  return data;
 }
 
 module.exports = {
@@ -230,5 +261,6 @@ module.exports = {
   addTransaction,
   updateTransaction,
   deleteTransaction,
-  getAllUserStats
+  getAllUserStats,
+  getSheetData
 };
