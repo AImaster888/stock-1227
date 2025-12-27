@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>股票交易記錄</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
+    .navbar { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .navbar h1 { font-size: 20px; }
+    .navbar .user-info { display: flex; align-items: center; gap: 16px; }
+    .navbar .user-name { font-size: 14px; opacity: 0.9; }
+    .navbar button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    .navbar button:hover { background: rgba(255,255,255,0.3); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 18px; color: #333; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0; }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-size: 13px; color: #666; margin-bottom: 6px; }
+    .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #4a90d9; }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-primary { background: #4a90d9; color: white; }
+    .btn-primary:hover { background: #357abd; }
+    .btn-secondary { background: #e0e0e0; color: #333; }
+    .btn-secondary:hover { background: #d0d0d0; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-group { display: flex; gap: 8px; margin-top: 16px; }
+    .filter-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; color: #555; }
+    tr:hover { background: #f8f9fa; }
+    .type-buy { color: #e74c3c; font-weight: 600; }
+    .type-sell { color: #27ae60; font-weight: 600; }
+    .actions { display: flex; gap: 8px; }
+    .actions button { padding: 6px 12px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; }
+    .stock-name { font-size: 12px; color: #4a90d9; margin-top: 4px; }
+    .total-display { font-size: 16px; font-weight: 600; color: #4a90d9; padding: 10px 12px; background: #f0f7ff; border-radius: 6px; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+    .modal.show { display: flex; }
+    .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+    .empty-state { text-align: center; padding: 40px; color: #999; }
+    @media (max-width: 768px) {
+      .form-row { grid-template-columns: 1fr; }
+      .filter-row { flex-direction: column; align-items: stretch; }
+      table { font-size: 12px; }
+      th, td { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <h1>📈 股票交易記錄</h1>
+    <div class="user-info">
+      <span class="user-name" id="userName"></span>
+      <button onclick="exportCSV()">匯出 CSV</button>
+      <button onclick="logout()">登出</button>
+    </div>
+  </nav>
+  
+  <div class="container">
+    <!-- 新增交易 -->
+    <div class="card">
+      <h2>➕ 新增交易紀錄</h2>
+      <form id="addForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label>日期</label>
+            <input type="date" id="date" required>
+          </div>
+          <div class="form-group">
+            <label>股票代號</label>
+            <input type="text" id="stockCode" placeholder="例如: 2330" required>
+            <div class="stock-name" id="stockName"></div>
+          </div>
+          <div class="form-group">
+            <label>類型</label>
+            <select id="type" required>
+              <option value="buy">買入</option>
+              <option value="sell">賣出</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>股數</label>
+            <input type="number" id="quantity" placeholder="1000" required>
+          </div>
+          <div class="form-group">
+            <label>價格</label>
+            <input type="number" id="price" step="0.01" placeholder="150.5" required>
+          </div>
+          <div class="form-group">
+            <label>總金額</label>
+            <div class="total-display" id="totalAmount">0</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex: 2;">
+            <label>理由 / 觀察點</label>
+            <textarea id="reason" placeholder="投資理由或觀察點..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>屬性</label>
+            <select id="attribute">
+              <option value="">請選擇</option>
+              <option value="長期">長期</option>
+              <option value="短期">短期</option>
+              <option value="存股">存股</option>
+              <option value="觀察">觀察</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button type="submit" class="btn btn-primary">新增紀錄</button>
+          <button type="reset" class="btn btn-secondary">清除</button>
+        </div>
+      </form>
+    </div>
+    
+    <!-- 搜尋篩選 -->
+    <div class="card">
+      <h2>🔍 搜尋紀錄</h2>
+      <div class="filter-row">
+        <div class="form-group">
+          <label>開始日期</label>
+          <input type="date" id="filterStartDate">
+        </div>
+        <div class="form-group">
+          <label>結束日期</label>
+          <input type="date" id="filterEndDate">
+        </div>
+        <div class="form-group">
+          <label>股票代號</label>
+          <input type="text" id="filterStockCode" placeholder="例如: 2330">
+        </div>
+        <button class="btn btn-primary" onclick="loadTransactions()">搜尋</button>
+        <button class="btn btn-secondary" onclick="clearFilters()">清除篩選</button>
+      </div>
+    </div>
+    
+    <!-- 交易紀錄列表 -->
+    <div class="card">
+      <h2>📋 交易紀錄</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>代號</th>
+            <th>名稱</th>
+            <th>類型</th>
+            <th>股數</th>
+            <th>價格</th>
+            <th>總金額</th>
+            <th>屬性</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="transactionsBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none;">目前沒有交易紀錄</div>
+    </div>
+  </div>
+  
+  <!-- 編輯 Modal -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>編輯交易紀錄</h3>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      </div>
+      <form id="editForm">
+        <input type="hidden" id="editId">
+        <div class="form-group"><label>日期</label><input type="date" id="editDate" required></div>
+        <div class="form-group"><label>股票代號</label><input type="text" id="editStockCode" required><div class="stock-name" id="editStockName"></div></div>
+        <div class="form-group"><label>類型</label><select id="editType" required><option value="buy">買入</option><option value="sell">賣出</option></select></div>
+        <div class="form-group"><label>股數</label><input type="number" id="editQuantity" required></div>
+        <div class="form-group"><label>價格</label><input type="number" id="editPrice" step="0.01" required></div>
+        <div class="form-group"><label>理由</label><textarea id="editReason"></textarea></div>
+        <div class="form-group"><label>屬性</label><select id="editAttribute"><option value="">請選擇</option><option value="長期">長期</option><option value="短期">短期</option><option value="存股">存股</option><option value="觀察">觀察</option></select></div>
+        <div class="btn-group">
+          <button type="submit" class="btn btn-primary">儲存</button>
+          <button type="button" class="btn btn-secondary" onclick="closeEditModal()">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script src="js/app.js"></script>
+  <script>
+    checkAuth();
+    loadTransactions();
+    document.getElementById('date').valueAsDate = new Date();
+    
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    document.getElementById('userName').textContent = user.displayName || user.userId;
+    
+    let stockTimeout;
+    document.getElementById('stockCode').addEventListener('input', (e) => {
+      clearTimeout(stockTimeout);
+      stockTimeout = setTimeout(() => lookupStock(e.target.value, 'stockName'), 300);
+    });
+    document.getElementById('editStockCode').addEventListener('input', (e) => {
+      clearTimeout(stockTimeout);
+      stockTimeout = setTimeout(() => lookupStock(e.target.value, 'editStockName'), 300);
+    });
+    
+    function calculateTotal() {
+      const qty = parseFloat(document.getElementById('quantity').value) || 0;
+      const price = parseFloat(document.getElementById('price').value) || 0;
+      document.getElementById('totalAmount').textContent = (qty * price).toLocaleString();
+    }
+    document.getElementById('quantity').addEventListener('input', calculateTotal);
+    document.getElementById('price').addEventListener('input', calculateTotal);
+    
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = {
+        日期: document.getElementById('date').value,
+        代號: document.getElementById('stockCode').value,
+        名稱: document.getElementById('stockName').textContent || document.getElementById('stockCode').value,
+        類型: document.getElementById('type').value,
+        股數: document.getElementById('quantity').value,
+        價格: document.getElementById('price').value,
+        總金額: parseFloat(document.getElementById('quantity').value) * parseFloat(document.getElementById('price').value),
+        理由: document.getElementById('reason').value,
+        屬性: document.getElementById('attribute').value
+      };
+      try {
+        const res = await fetchWithAuth('/api/transactions', { method: 'POST', body: JSON.stringify(data) });
+        if (res.success) {
+          alert('新增成功！');
+          e.target.reset();
+          document.getElementById('date').valueAsDate = new Date();
+          document.getElementById('stockName').textContent = '';
+          document.getElementById('totalAmount').textContent = '0';
+          loadTransactions();
+        } else { alert('新增失敗：' + res.error); }
+      } catch (error) { alert('新增失敗：' + error.message); }
+    });
+    
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('editId').value;
+      const data = {
+        日期: document.getElementById('editDate').value,
+        代號: document.getElementById('editStockCode').value,
+        名稱: document.getElementById('editStockName').textContent || document.getElementById('editStockCode').value,
+        類型: document.getElementById('editType').value,
+        股數: document.getElementById('editQuantity').value,
+        價格: document.getElementById('editPrice').value,
+        總金額: parseFloat(document.getElementById('editQuantity').value) * parseFloat(document.getElementById('editPrice').value),
+        理由: document.getElementById('editReason').value,
+        屬性: document.getElementById('editAttribute').value
+      };
+      try {
+        const res = await fetchWithAuth(`/api/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+        if (res.success) { alert('更新成功！'); closeEditModal(); loadTransactions(); }
+        else { alert('更新失敗：' + res.message); }
+      } catch (error) { alert('更新失敗：' + error.message); }
+    });
+  </script>
+</body>
+</html>

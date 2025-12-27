@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理員後台</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
+    .navbar { background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%); color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .navbar h1 { font-size: 20px; }
+    .navbar .user-info { display: flex; align-items: center; gap: 16px; }
+    .navbar button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    .navbar button:hover { background: rgba(255,255,255,0.3); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .tab { padding: 12px 24px; background: white; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; font-weight: 500; color: #666; }
+    .tab.active { background: #8e44ad; color: white; }
+    .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 18px; color: #333; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; }
+    .stat-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .stat-card.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .stat-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .stat-card h3 { font-size: 14px; opacity: 0.9; margin-bottom: 8px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; color: #555; }
+    tr:hover { background: #f8f9fa; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .btn-primary { background: #8e44ad; color: white; }
+    .btn-primary:hover { background: #7d3c98; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-success:hover { background: #1e8449; }
+    .user-select { padding: 10px 16px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 200px; }
+    .filter-row { display: flex; gap: 16px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .type-buy { color: #e74c3c; font-weight: 600; }
+    .type-sell { color: #27ae60; font-weight: 600; }
+    .empty-state { text-align: center; padding: 40px; color: #999; }
+    @media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr 1fr; } table { font-size: 12px; } th, td { padding: 8px; } }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <h1>👑 管理員後台</h1>
+    <div class="user-info">
+      <button onclick="location.href='/dashboard'">我的紀錄</button>
+      <button onclick="logout()">登出</button>
+    </div>
+  </nav>
+  
+  <div class="container">
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><h3>總用戶數</h3><div class="value" id="totalUsers">-</div></div>
+      <div class="stat-card green"><h3>總交易筆數</h3><div class="value" id="totalTransactions">-</div></div>
+      <div class="stat-card orange"><h3>總買入金額</h3><div class="value" id="totalBuyAmount">-</div></div>
+      <div class="stat-card blue"><h3>總賣出金額</h3><div class="value" id="totalSellAmount">-</div></div>
+    </div>
+    
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('stats')">用戶統計</button>
+      <button class="tab" onclick="switchTab('transactions')">查看交易</button>
+    </div>
+    
+    <div class="tab-content active" id="statsTab">
+      <div class="card">
+        <h2>📊 各用戶統計</h2>
+        <table>
+          <thead><tr><th>用戶</th><th>交易筆數</th><th>買入次數</th><th>賣出次數</th><th>買入總額</th><th>賣出總額</th><th>操作</th></tr></thead>
+          <tbody id="userStatsBody"></tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="tab-content" id="transactionsTab">
+      <div class="card">
+        <h2>📋 用戶交易紀錄</h2>
+        <div class="filter-row">
+          <select class="user-select" id="userSelect" onchange="loadUserTransactions()"><option value="">選擇用戶</option></select>
+          <button class="btn btn-success" onclick="exportUserCSV()">匯出此用戶 CSV</button>
+        </div>
+        <table>
+          <thead><tr><th>日期</th><th>代號</th><th>名稱</th><th>類型</th><th>股數</th><th>價格</th><th>總金額</th><th>屬性</th><th>理由</th></tr></thead>
+          <tbody id="userTransactionsBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState">請選擇用戶查看交易紀錄</div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="js/app.js"></script>
+  <script>
+    checkAuth(true);
+    loadStats();
+    loadUsers();
+    
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+      document.getElementById(tab + 'Tab').classList.add('active');
+    }
+    
+    async function loadStats() {
+      try {
+        const stats = await fetchWithAuth('/api/admin/stats');
+        let totalTx = 0, totalBuy = 0, totalSell = 0;
+        const tbody = document.getElementById('userStatsBody');
+        tbody.innerHTML = '';
+        stats.forEach(s => {
+          totalTx += s.totalTransactions;
+          totalBuy += s.buyAmount;
+          totalSell += s.sellAmount;
+          tbody.innerHTML += `<tr><td>${s.userId}</td><td>${s.totalTransactions}</td><td>${s.buyCount}</td><td>${s.sellCount}</td><td>${s.buyAmount.toLocaleString()}</td><td>${s.sellAmount.toLocaleString()}</td><td><button class="btn btn-primary" onclick="viewUserTransactions('${s.userId}')">查看</button></td></tr>`;
+        });
+        document.getElementById('totalUsers').textContent = stats.length;
+        document.getElementById('totalTransactions').textContent = totalTx;
+        document.getElementById('totalBuyAmount').textContent = totalBuy.toLocaleString();
+        document.getElementById('totalSellAmount').textContent = totalSell.toLocaleString();
+      } catch (error) { console.error('載入統計失敗:', error); }
+    }
+    
+    async function loadUsers() {
+      try {
+        const users = await fetchWithAuth('/api/admin/users');
+        const select = document.getElementById('userSelect');
+        users.forEach(u => { if (u.role !== 'admin') select.innerHTML += `<option value="${u.userId}">${u.displayName || u.userId}</option>`; });
+      } catch (error) { console.error('載入用戶清單失敗:', error); }
+    }
+    
+    function viewUserTransactions(userId) {
+      document.getElementById('userSelect').value = userId;
+      switchTab('transactions');
+      loadUserTransactions();
+    }
+    
+    async function loadUserTransactions() {
+      const userId = document.getElementById('userSelect').value;
+      const tbody = document.getElementById('userTransactionsBody');
+      const emptyState = document.getElementById('emptyState');
+      if (!userId) { tbody.innerHTML = ''; emptyState.style.display = 'block'; return; }
+      try {
+        const transactions = await fetchWithAuth(`/api/admin/transactions/${userId}`);
+        if (transactions.length === 0) { tbody.innerHTML = ''; emptyState.textContent = '此用戶沒有交易紀錄'; emptyState.style.display = 'block'; return; }
+        emptyState.style.display = 'none';
+        tbody.innerHTML = '';
+        transactions.forEach(t => {
+          const typeClass = t.類型 === 'buy' ? 'type-buy' : 'type-sell';
+          const typeText = t.類型 === 'buy' ? '買入' : '賣出';
+          tbody.innerHTML += `<tr><td>${t.日期}</td><td>${t.代號}</td><td>${t.名稱}</td><td class="${typeClass}">${typeText}</td><td>${parseInt(t.股數).toLocaleString()}</td><td>${parseFloat(t.價格).toLocaleString()}</td><td>${parseFloat(t.總金額).toLocaleString()}</td><td>${t.屬性 || '-'}</td><td>${t.理由 || '-'}</td></tr>`;
+        });
+      } catch (error) { console.error('載入交易紀錄失敗:', error); emptyState.textContent = '載入失敗'; emptyState.style.display = 'block'; }
+    }
+    
+    function exportUserCSV() {
+      const userId = document.getElementById('userSelect').value;
+      if (!userId) { alert('請先選擇用戶'); return; }
+      const token = localStorage.getItem('token');
+      window.location.href = `/api/admin/export/csv/${userId}?token=${token}`;
+    }
+  </script>
+</body>
+</html>
