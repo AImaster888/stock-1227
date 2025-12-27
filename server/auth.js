@@ -62,14 +62,21 @@ async function login(username, password) {
 
 // 驗證 Token（中介軟體）
 function verifyToken(req, res, next) {
+  // 從 Header 或 URL 參數取得 token
   const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  let token = null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query.token) {
+    // 支援從 URL 參數取得 token（用於檔案下載）
+    token = req.query.token;
+  }
+
+  if (!token) {
     return res.status(401).json({ error: '未提供認證資訊' });
   }
-  
-  const token = authHeader.split(' ')[1];
-  
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
